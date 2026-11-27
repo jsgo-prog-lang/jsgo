@@ -1,0 +1,29 @@
+// Parsing text into numbers, and handling failure with Result.
+
+import "strconv";
+import "math";
+
+function celsiusToFahrenheit(c: float64): float64 {
+    return c * 9.0 / 5.0 + 32.0;
+}
+
+function main() {
+    // strconv parsers return Result<T, string> — failure is a value,
+    // not an exception and not a hidden null.
+    let parsed = strconv.parseFloat("21.5");
+    if parsed.ok {
+        println("21.5 C = " + string(celsiusToFahrenheit(parsed.value)) + " F");
+    } else {
+        println("unexpected failure: " + parsed.error());
+    }
+
+    let bad = strconv.parseInt("not a number");
+    if bad.ok {
+        println("unexpected success: " + string(bad.value));
+    } else {
+        println("expected failure: " + bad.error());
+    }
+
+    println("sqrt(2) = " + string(math.sqrt(2.0)));
+    println("round(2.5) = " + string(math.round(2.5)));
+}

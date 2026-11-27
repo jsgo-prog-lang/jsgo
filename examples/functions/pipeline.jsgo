@@ -1,0 +1,31 @@
+// Arrow functions are values: store them, pass them, compose them.
+// (Arrows are JSGo's only anonymous-function syntax.)
+
+function applyAll(values: []int32, f: function(int32): int32): []int32 {
+    let out: []int32 = [];
+    for (let i: int32 = 0; i < values.length; i++) {
+        out.push(f(values[i]));
+    }
+    return out;
+}
+
+function main() {
+    let nums: []int32 = [1, 2, 3, 4, 5];
+
+    // Expression body; the result type is inferred.
+    let double = (n: int32) => n * 2;
+
+    // Block body with an explicit return.
+    let squared = (n: int32): int32 => {
+        return n * n;
+    };
+
+    let a = applyAll(nums, double);
+    let b = applyAll(nums, squared);
+    println(a[4]); // 10
+    println(b[4]); // 25
+
+    // A lone untyped parameter takes its type from the annotation.
+    let inc: function(int32): int32 = (n) => n + 1;
+    println(inc(41)); // 42
+}

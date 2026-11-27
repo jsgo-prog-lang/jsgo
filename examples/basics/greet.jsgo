@@ -1,0 +1,33 @@
+// String building, branching, and comparison operators.
+
+function describe(name: string, age: int32): string {
+    if age < 13 {
+        return name + " is a child";
+    } else if age < 18 {
+        return name + " is a teenager";
+    } else {
+        return name + " is an adult";
+    }
+}
+
+function main() {
+    const names: string = "Ada";
+    println(describe("Ada", 36));
+    println(describe("Linus", 12));
+
+    let greeting: string = "Hello, " + names + "!";
+    println(greeting);
+
+    let temperature: float64 = 21.5;
+    if temperature > 18.0 && temperature < 30.0 {
+        println("the weather is pleasant");
+    } else {
+        println("dress accordingly");
+    }
+
+    let attempts: int32 = 0;
+    while attempts < 3 {
+        attempts += 1;
+    }
+    println(attempts);
+}

@@ -1,0 +1,30 @@
+// Structs are values: a value receiver works on a copy, while a
+// pointer receiver mutates the original — with & for explicitness.
+
+struct Point {
+    x: float64;
+    y: float64;
+}
+
+function (p: Point) scale(k: float64): Point {
+    return Point(p.x * k, p.y * k);
+}
+
+function (p: *Point) translate(dx: float64, dy: float64) {
+    // No auto-dereference in JSGo: spell the pointee explicitly.
+    (*p).x = (*p).x + dx;
+    (*p).y = (*p).y + dy;
+}
+
+function main() {
+    let p = Point(1.0, 2.0);
+    let q = p.scale(3.0);
+    println(q.x); // 3
+    println(q.y); // 6
+    println(p.x); // 1 — p was never modified
+
+    // A pointer receiver needs an address: (&p) or a *Point variable.
+    (&p).translate(10.0, 20.0);
+    println(p.x); // 11
+    println(p.y); // 22
+}

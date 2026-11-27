@@ -1,0 +1,26 @@
+// Recursion, loops, and typed functions.
+
+function fib(n: int32): int32 {
+    if n < 2 {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
+}
+
+function sumTo(n: int32): int64 {
+    let total: int64 = 0;
+    for (let i = 1; i <= n; i++) {
+        total += int64(i);
+    }
+    return total;
+}
+
+function main() {
+    println("fibonacci:");
+    for (let i: int32 = 0; i <= 15; i++) {
+        println(fib(i));
+    }
+
+    println("sum 1..100 =");
+    println(sumTo(100));
+}

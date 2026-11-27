@@ -1,0 +1,60 @@
+// Classes, inheritance, and interfaces: one vtable, dynamic dispatch.
+
+interface Speaker {
+    speak(): string;
+}
+
+class Animal implements Speaker {
+    protected name: string;
+
+    constructor(name: string) {
+        this.name = name;
+    }
+
+    speak(): string {
+        return "...";
+    }
+
+    public describe(): string {
+        return this.name + " says " + this.speak();
+    }
+}
+
+class Dog extends Animal {
+    constructor(name: string) {
+        super(name);
+    }
+
+    speak(): string {
+        return "woof";
+    }
+}
+
+class Cat extends Animal {
+    constructor(name: string) {
+        super(name);
+    }
+
+    speak(): string {
+        return "meow";
+    }
+}
+
+function announce(s: Speaker) {
+    println(s.speak());
+}
+
+function main() {
+    // A class value assigned to an interface-typed slot wraps
+    // implicitly, so both classes fit the same []Speaker.
+    let roster: []Speaker = [];
+    roster.push(new Dog("Rex"));
+    roster.push(new Cat("Whiskers"));
+
+    for (let i: int32 = 0; i < roster.length; i++) {
+        announce(roster[i]);
+    }
+
+    let rex = new Dog("Rex");
+    println(rex.describe());
+}

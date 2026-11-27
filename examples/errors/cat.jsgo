@@ -1,0 +1,21 @@
+// A tiny `cat`: read a file given on the command line and print it,
+// with Result-based error handling instead of exceptions.
+
+import "os";
+import "filesystem";
+
+function main() {
+    let args: []string = os.args();
+    if args.length < 1 {
+        println("usage: jsgo run cat.jsgo <file>");
+        os.exit(1);
+    }
+
+    let contents = filesystem.readFile(args[0]);
+    if contents.ok {
+        println(contents.value);
+    } else {
+        println("cat: " + contents.error());
+        os.exit(1);
+    }
+}

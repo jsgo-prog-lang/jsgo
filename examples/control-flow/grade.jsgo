@@ -1,0 +1,34 @@
+// switch: constant cases, multiple values per arm, no fallthrough.
+
+function classify(score: int32): string {
+    switch score {
+    case 90, 100:
+        return "A";
+    case 80:
+        return "B";
+    case 70:
+        return "C";
+    default:
+        return "needs work";
+    }
+}
+
+function main() {
+    // Matching is exact: 100 and 90 both hit 'case 90, 100', but 95
+    // hits no case (JSGo switch has no ranges) and falls to default.
+    println(classify(100)); // A
+    println(classify(90)); // A
+    println(classify(80)); // B
+    println(classify(70)); // C
+    println(classify(95)); // needs work — no case matches 95
+    println(classify(42)); // needs work — default
+
+    // String tags work too — the tag is evaluated exactly once.
+    let day: string = "sat";
+    switch day {
+    case "sat", "sun":
+        println("weekend");
+    default:
+        println("weekday");
+    }
+}

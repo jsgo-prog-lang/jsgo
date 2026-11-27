@@ -1,0 +1,27 @@
+// Counting word frequencies with strings, arrays, and maps.
+
+import "strings";
+
+function main() {
+    const text: string = "the quick brown fox jumps over the lazy dog the fox";
+
+    let words: []string = strings.split(text, " ");
+    let counts: map[string]int32 = {};
+
+    for (let i: int32 = 0; i < words.length; i++) {
+        let w: string = words[i];
+        if counts.has(w) {
+            counts[w] = counts[w] + 1;
+        } else {
+            counts[w] = 1;
+        }
+    }
+
+    println("words: " + string(words.length));
+    println("'the' appears " + string(counts["the"]) + " times");
+    println("'fox' appears " + string(counts["fox"]) + " times");
+    println("'cat' present? " + string(counts.has("cat")));
+
+    counts.delete("the");
+    println("after delete, 'the' present? " + string(counts.has("the")));
+}

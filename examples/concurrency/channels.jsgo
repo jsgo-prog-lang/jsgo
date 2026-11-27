@@ -1,0 +1,69 @@
+// Tasks and channels: `go` starts a task on the same single-threaded
+// scheduler, a Channel<T> carries values between tasks, and a task
+// with no partner to talk to parks instead of holding a thread.
+// `select` probes several channels in one step.
+
+function produce(out: Channel<int32>, count: int32) {
+    for (let i: int32 = 1; i <= count; i++) {
+        out.send(i * i);
+    }
+    out.close();
+}
+
+function main() {
+    // --- spawn, send, recv ---------------------------------------
+
+    // A capacity of 4 lets the producer run ahead of the consumer.
+    // An omitted capacity would be 0 — unbuffered, so every send
+    // waits for a matching recv.
+    let squares: Channel<int32> = Channel<int32>(4);
+
+    // Start a task. main keeps running on the same scheduler, so the
+    // producer only gets a turn once main parks on recv().
+    go produce(squares, 5);
+
+    // recv() parks the task while the buffer is empty; the scheduler
+    // runs the producer until it has something to hand over.
+    let total: int32 = 0;
+    for (let i: int32 = 0; i < 5; i++) {
+        let v = squares.recv();
+        println(v);
+        total += v;
+    }
+    println(total);
+
+    // --- close ---------------------------------------------------
+
+    // The producer closed the channel, so recv() on a closed and
+    // drained channel yields the zero value immediately instead of
+    // parking forever. (send() on a closed channel, and closing it
+    // twice, are runtime errors.)
+    let after = squares.recv();
+    println(after);
+    println(squares.isClosed());
+    println(squares.length());
+
+    // --- select --------------------------------------------------
+
+    // select probes several channels in one step and picks a ready
+    // arm at random. With a `default`, a probe with nothing ready
+    // does not park at all.
+    let pending: Channel<int32> = Channel<int32>(1);
+    pending.send(7);
+
+    select {
+    case let v = pending.recv():
+        println(v);
+    default:
+        println("nothing ready");
+    }
+
+    // pending is empty now, so no arm is ready and the default runs
+    // instead of parking.
+    select {
+    case let v = pending.recv():
+        println(v);
+    default:
+        println("nothing ready");
+    }
+}

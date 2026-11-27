@@ -1,0 +1,6 @@
+// The canonical first program.
+
+function main() {
+    const message: string = "Hello, JSGo!";
+    println(message);
+}
