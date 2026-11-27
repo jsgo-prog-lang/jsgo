@@ -131,6 +131,242 @@ jsgo update [pkg...]   re-resolve dependencies
 
 Run `jsgo <command> -h` for the options of any command.
 
+## Why JSGo?
+
+### Why should I learn it?
+
+If you already write JavaScript or TypeScript, you already know most
+of JSGo's syntax. Functions, `let`/`const`, `class`, `extends`,
+`async`/`await`, arrow functions and `for` loops all mean what they
+mean there. What JSGo adds back is a type checker that refuses to let
+a whole class of bugs reach runtime.
+
+```js
+// JavaScript: no complaint now, "23" at runtime
+function add(a, b) { return a + b; }
+console.log(add("2", 3));   // "23"
+```
+
+```jsgo
+// JSGo: caught before the program runs
+function add(a: int32, b: int32): int32 {
+    return a + b;
+}
+
+function main() {
+    println(add("2", 3));
+}
+```
+
+```
+error[E0201]: argument 1 of 'add': cannot use string as int32
+```
+
+There is a second reason to look: JSGo is a small, readable compiler.
+It is written in Go, parses your file into a syntax tree, type-checks
+it, lowers it to a typed IR, and emits C — the whole pipeline is
+documented in [`docs/LANGUAGE_SPEC.md`](docs/LANGUAGE_SPEC.md) if you
+have ever wanted to see how a language really works.
+
+### How powerful is it?
+
+JSGo compiles to C and links against a small embedded runtime, so a
+JSGo program is a **native executable**. No Node.js, no JVM, no Go
+runtime and no interpreter on the target machine — just a binary.
+
+What that gets you:
+
+- **Real concurrency.** `async`/`await` tasks, `Channel<T>`,
+  `select`, and `go worker(arg)` run on one cooperative scheduler
+  where `time.sleep` and socket waits park tasks instead of blocking
+  the program.
+- **Generics, closures, classes and interfaces** — unconstrained
+  generics (`Box<T>`), arrow functions that capture locals, single
+  inheritance with virtual dispatch, and structural interfaces.
+- **Pointers with a safety net.** `*T`, `&x` and `*p` exist for when
+  you need them; address-taken locals are boxed so an escaping
+  pointer never dangles, and a conservative mark–sweep collector
+  reclaims memory.
+- **Cross-compilation** for Linux and macOS on x86-64 and arm64.
+- **One toolchain.** `jsgo build`, `run`, `test`, `fmt`, `lint`,
+  `doc`, `watch` and `lsp` all come from a single binary.
+
+```jsgo
+async function square(n: int32): int32 {
+    return n * n;
+}
+
+async function report(): int32 {
+    let t: Task<int32> = square(7);   // starts eagerly
+    let v: int32 = await t;           // suspends until it finishes
+    println(v);                       // 49
+    return v;
+}
+
+function main() {
+    report();
+}
+```
+
+### What kinds of apps can I build?
+
+| Kind of app | What you would use |
+| --- | --- |
+| Command-line tools and scripts | `os`, `filesystem`, `path`, `strconv` |
+| REST APIs and web servers | `http.serve` + `json` (see [`examples/server/main.jsgo`](examples/server/main.jsgo)) |
+| Socket-level network services | `net` (`listen`/`accept`/`read`/`write`) |
+| Database-backed services | `database` (five `Result`-returning calls) |
+| Concurrent workers and pipelines | `async`/`await`, `Channel<T>`, `select` |
+| Tested, documented libraries | `testing`, `jsgo test`, `jsgo doc` |
+
+A whole HTTP server is this short:
+
+```jsgo
+import "http";
+
+function greet(req: Request): Response {
+    return Response(200, {"Content-Type": "text/plain"},
+        "you requested " + req.path);
+}
+
+function main() {
+    let r = http.serve("127.0.0.1:8080", greet);
+    if (!r.isOk()) {
+        println("serve failed: " + r.error());
+    }
+}
+```
+
+[`examples/server/main.jsgo`](examples/server/main.jsgo) is the
+fuller version — a TODO service with full CRUD, JSON bodies and an
+embedded row store.
+
+JSGo targets the command line and the server. Browser apps, mobile,
+GUI and games are out of scope for now.
+
+### What are the benefits?
+
+- **Familiar syntax, strict types.** You keep the shape of the code
+  you already write; you lose the runtime surprises.
+- **Errors that read like feedback, not puzzles.** Every diagnostic
+  has a stable code, a source location, and usually a `help:` line
+  telling you what to write instead.
+- **Nothing to install on the target machine.** Ship one binary; it
+  does not need a language runtime on the other side.
+- **Reproducible dependencies.** `jsgo.lock` pins the exact version
+  *and* the SHA-256 of every package, so a cold install verifies what
+  a warm install used.
+- **The boring parts are built in.** A formatter (`jsgo fmt`), a
+  soundness linter (`jsgo lint`), a documentation generator
+  (`jsgo doc`), a language server (`jsgo lsp`) and a package manager
+  (`jsgo get`) are part of the toolchain, not a shopping list.
+- **A 17-module standard library** (112 checked functions) covering
+  strings, math, time, encoding, crypto, JSON, HTTP, databases and
+  testing — see [`docs/STANDARD_LIBRARY.md`](docs/STANDARD_LIBRARY.md).
+
+### What are the advantages and disadvantages?
+
+**Advantages**
+
+- JavaScript/TS syntax with compile-time types — a low barrier in,
+  a high safety bar once you are there.
+- Native output with a garbage collector, so you get performance
+  without manual memory management.
+- Concurrency primitives (`Channel<T>`, `select`, `go`) that are
+  syntax, not a library afterthought.
+- One binary for the whole developer experience: build, test, format,
+  lint, document, and an editor language server.
+
+**Trade-offs — read these before betting a project on it**
+
+- **v0.2 is experimental.** It works and the test suite is green, but
+  it is pre-1.0: expect breaking changes and do not ship it as a
+  dependency of anything critical yet.
+- **Not everything from JavaScript is here.** Template strings and
+  `regex` are reserved with clear `E0020` diagnostics. Object
+  literals, destructuring, spread/rest, `for-of`/`for-in` and
+  `try/catch` are deliberately deferred — each raises a diagnostic
+  rather than silently compiling.
+- **No auto-dereference.** Through a pointer you write
+  `(*p).field`, not `p.field`.
+- **Single inheritance only**, and structs use positional
+  constructors (`Point(1.0, 2.0)`), not object-literal syntax.
+- **You need a C toolchain to build.** The compiler emits C and
+  hands it to `cc`.
+- **The ecosystem is young.** `jsgo get` is new and there are few
+  third-party packages compared with npm, PyPI or Go modules.
+- **The collector is conservative**, so it trades some throughput
+  for never reclaiming live memory.
+
+### How does it compare to other languages?
+
+| | JavaScript | TypeScript | Go | Rust | Python | **JSGo** |
+| --- | --- | --- | --- | --- | --- | --- |
+| Type checking | dynamic | static (erased at runtime) | static | static | dynamic | **static** |
+| What you ship | source | source (JS) | native binary | native binary | source | **native binary** |
+| Syntax | — | JS + types | C-like | its own | English-like | **JS/TS-like** |
+| Concurrency | event loop | event loop | goroutines | async + ownership | threads/async | **tasks + channels** |
+| Memory | GC | GC | GC | ownership, no GC | GC | **GC (conservative)** |
+| Needs to build | nothing | nothing | Go toolchain | Rust toolchain | nothing | **a C compiler** |
+| Maturity | huge | huge | large | growing | huge | **v0.2 experimental** |
+
+The short version: **TypeScript's syntax, Go's compile-to-native
+model, and a standard library that assumes you are writing a server
+or a tool.** Choose JavaScript when you must run in a browser,
+Python when you want the largest ecosystem and the softest ramp,
+Go or Rust when you need production-grade tooling today. Choose JSGo
+when you want native output with syntax you already know, and you
+are happy being an early adopter.
+
+### What real-world problems can it solve today?
+
+Given where the project is, the honest answer is *prototypes,
+internal tools and learning projects*:
+
+- **Internal CLI tools** — a script that grew past "just a shell
+  script", where a single distributable binary is the whole point.
+- **REST microservices and side projects** — `http.serve` plus
+  `json` is enough for a real API, as
+  [`examples/server/main.jsgo`](examples/server/main.jsgo)
+  demonstrates end to end.
+- **Batch and data-processing jobs** — parse, transform and write
+  files with `strconv`, `encoding` and `filesystem`, with `Result`
+  instead of exceptions.
+- **Concurrent workers** — a pool of tasks feeding a `Channel<T>`,
+  with `select` whichever source is ready first.
+- **Teaching and experimentation** — a language small enough to
+  read the whole compiler for, which is rare among modern languages.
+
+It is not yet the right choice for a safety-critical system, a
+long-lived public API, or anything that must not change under you.
+
+### Career opportunities and future scope?
+
+Be direct about this: **JSGo is not a hiring market today.** Nobody
+is listing "3 years of JSGo" in a job ad. What it *is* good for:
+
+- **Transferable skills.** Static typing, generics, interfaces,
+  concurrency primitives, memory models and how a compiler pipeline
+  works are the same concepts asked about in TypeScript, Go and Rust
+  interviews. Learning them in a small language makes them easier to
+  see.
+- **A credible portfolio piece.** "I read and patched a compiler"
+  is a stronger story than another to-do app.
+- **Early-contributor leverage.** A project at v0.2 has far more
+  room for meaningful contribution than a mature one does — the
+  roadmap still has debugger integration and benchmarking to land,
+  and a future backend would not touch the front end.
+
+**Where the project is heading:** the developer-ecosystem wave has
+already shipped the formatter, linter, documentation generator,
+package manager and language server. Debugger integration and
+benchmarking remain, and the pipeline keeps the front end, type
+checker and backend independent so a future LLVM backend would not
+touch the front end.
+
+If you want to watch a language go from "it compiles" to "people
+build on it", this is an unusually legible moment to join.
+
 ## Documentation
 
 | Document | What it covers |
@@ -166,6 +402,7 @@ so you can read one idea at a time:
 | `errors/` | `temperature.jsgo` | Parsing text into numbers, `Result`-based failure |
 | `errors/` | `cat.jsgo` | Reading a file, with `Result` instead of exceptions |
 | `concurrency/` | `channels.jsgo` | `go` tasks, `Channel<T>`, and `select` |
+| `server/` | `main.jsgo` | A JSON REST API with full CRUD over HTTP |
 
 Run any of them:
 
@@ -181,9 +418,17 @@ takes an argument:
 jsgo run examples/errors/cat.jsgo some-file.txt
 ```
 
-Every example in this directory is run against the compiler it ships
-with as part of the release gate, so the version you downloaded is
-the version they were checked against.
+`server/main.jsgo` is a server, so it keeps running instead of
+exiting — stop it with Ctrl+C. It listens on port 8080 and prints
+the address when it is ready:
+
+```sh
+jsgo run examples/server/main.jsgo
+```
+
+Every example in this directory is checked against the compiler it
+ships with as part of the release gate, so the version you
+downloaded is the version they were checked against.
 
 ## Editor support
 

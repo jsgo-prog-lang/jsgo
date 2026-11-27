@@ -1,0 +1,257 @@
+// A small TODO REST API: JSON over HTTP, persisted in the embedded
+// row store. Full CRUD — create, read, update, delete. Run it:
+//
+//     jsgo run main.jsgo
+//
+// then, from another terminal:
+//
+//     curl http://127.0.0.1:8080/api/todos
+//     curl -X POST -H "Content-Type: application/json" \
+//          -d '{"title":"buy milk"}' http://127.0.0.1:8080/api/todos
+//     curl http://127.0.0.1:8080/api/todos/1
+//     curl -X PUT -H "Content-Type: application/json" \
+//          -d '{"title":"buy oat milk"}' http://127.0.0.1:8080/api/todos/1
+//     curl -X DELETE http://127.0.0.1:8080/api/todos/1
+//
+// route() is separate from handle() so the tests can exercise every
+// endpoint by constructing Request values — no server, no port.
+
+import "database";
+import "filesystem";
+import "http";
+import "json";
+import "net";
+import "os";
+import "strconv";
+import "strings";
+
+// Todo is one row: the id is the database key, the title the value.
+struct Todo {
+    id: string;
+    title: string;
+}
+
+// ApiError is the {"error": "..."} body every failure uses.
+struct ApiError {
+    error: string;
+}
+
+function handle(req: Request): Response {
+    return route(req, "data");
+}
+
+// route resolves the request to an operation, opens the store, and
+// dispatches. v0.1 has no global variables, so each request opens
+// its own handle — open is idempotent (the same directory) and
+// cheap. db is a parameter so the tests can point every endpoint at
+// a fresh directory.
+function route(req: Request, db: string): Response {
+    let op: string = "";
+    let id: string = "";
+    if (req.path == "/api/todos") {
+        if (req.method == "GET") {
+            op = "list";
+        } else if (req.method == "POST") {
+            op = "create";
+        } else {
+            return jsonError(405, "method not allowed");
+        }
+    } else if (strings.startsWith(req.path, "/api/todos/")) {
+        // "/api/todos/<id>" is exactly four slash-separated parts.
+        let parts = strings.split(req.path, "/");
+        if (parts.length != 4 || parts[3] == "") {
+            return jsonError(404, "not found");
+        }
+        id = parts[3];
+        if (req.method == "GET") {
+            op = "get";
+        } else if (req.method == "PUT") {
+            op = "update";
+        } else if (req.method == "DELETE") {
+            op = "delete";
+        } else {
+            return jsonError(405, "method not allowed");
+        }
+    } else {
+        return jsonError(404, "not found");
+    }
+
+    let h = database.open(db);
+    if (!h.isOk()) {
+        return jsonError(500, h.error());
+    }
+    let s: int32 = h.value();
+
+    // Every op the router can produce is dispatched explicitly, so
+    // adding a verb is one branch here and one function below.
+    if (op == "list") {
+        return listTodos(s);
+    }
+    if (op == "create") {
+        return createTodo(s, req.body);
+    }
+    if (op == "get") {
+        return getTodo(s, id);
+    }
+    if (op == "update") {
+        return updateTodo(s, id, req.body);
+    }
+    if (op == "delete") {
+        return deleteTodo(s, id);
+    }
+    return jsonError(500, "unrouted operation");
+}
+
+// listTodos responds with every todo as a JSON array, in key order.
+function listTodos(s: int32): Response {
+    let l = database.list(s, "todos");
+    if (!l.isOk()) {
+        return jsonError(500, l.error());
+    }
+    let keys = json.parse(l.value());
+    if (!keys.isOk()) {
+        return jsonError(500, keys.error());
+    }
+    let arr = keys.value();
+    let out: string = "[";
+    let first: bool = true;
+    let i: int32 = 0;
+    while (i < arr.len()) {
+        let id: string = arr.at(i).str();
+        let g = database.get(s, "todos", id);
+        if (g.isOk()) {
+            if (!first) {
+                out = out + ",";
+            }
+            out = out + json.stringify(Todo(id, g.value()));
+            first = false;
+        }
+        i = i + 1;
+    }
+    out = out + "]";
+    return jsonOk(200, out);
+}
+
+// createTodo takes {"title": "..."} and stores it under the next
+// counter value.
+function createTodo(s: int32, body: string): Response {
+    let title = titleOf(body);
+    if (title == "") {
+        return jsonError(400, "a title is required");
+    }
+    let id = nextId(s);
+    if (id == "") {
+        return jsonError(500, "could not allocate an id");
+    }
+    let p = database.put(s, "todos", id, title);
+    if (!p.isOk()) {
+        return jsonError(500, p.error());
+    }
+    return jsonOk(201, json.stringify(Todo(id, title)));
+}
+
+function getTodo(s: int32, id: string): Response {
+    let g = database.get(s, "todos", id);
+    if (!g.isOk()) {
+        if (g.error() == "database: key not found") {
+            return jsonError(404, "no todo with id " + id);
+        }
+        return jsonError(500, g.error());
+    }
+    return jsonOk(200, json.stringify(Todo(id, g.value())));
+}
+
+// updateTodo replaces the title of an existing todo. The row is
+// looked up first so a missing id answers 404 before the body is
+// examined — you cannot update what is not there, whatever the body
+// says. database.put writes over the existing key, so the id is
+// unchanged and the counter is not touched.
+function updateTodo(s: int32, id: string, body: string): Response {
+    let g = database.get(s, "todos", id);
+    if (!g.isOk()) {
+        if (g.error() == "database: key not found") {
+            return jsonError(404, "no todo with id " + id);
+        }
+        return jsonError(500, g.error());
+    }
+    let title = titleOf(body);
+    if (title == "") {
+        return jsonError(400, "a title is required");
+    }
+    let p = database.put(s, "todos", id, title);
+    if (!p.isOk()) {
+        return jsonError(500, p.error());
+    }
+    return jsonOk(200, json.stringify(Todo(id, title)));
+}
+
+function deleteTodo(s: int32, id: string): Response {
+    let d = database.delete(s, "todos", id);
+    if (!d.isOk()) {
+        if (d.error() == "database: key not found") {
+            return jsonError(404, "no todo with id " + id);
+        }
+        return jsonError(500, d.error());
+    }
+    return Response(204, {}, "");
+}
+
+// titleOf extracts the title from a request body. The Json
+// accessors are total: a malformed body or a missing/non-string
+// title yields "", which createTodo reports as a 400.
+function titleOf(body: string): string {
+    let j = json.parse(body);
+    if (!j.isOk()) {
+        return "";
+    }
+    return j.value().get("title").str();
+}
+
+// nextId allocates from a counter row in a second table: it reads
+// "next", stores the increment, and returns the value it read — so
+// ids are never reused, even after the newest todo is deleted. A
+// missing counter (the first run) starts at 1; a corrupt row falls
+// back to 1 the same way. "" means the counter could not be
+// updated, which createTodo reports as a 500.
+function nextId(s: int32): string {
+    let cur: int32 = 1;
+    let g = database.get(s, "meta", "next");
+    if (g.isOk()) {
+        let n = strconv.parseInt(g.value());
+        if (n.isOk() && n.value() > 0) {
+            cur = n.value();
+        }
+    }
+    let p = database.put(s, "meta", "next", strconv.formatInt(cur + 1, 10));
+    if (!p.isOk()) {
+        return "";
+    }
+    return strconv.formatInt(cur, 10);
+}
+
+function jsonOk(status: int32, body: string): Response {
+    return Response(status, {"Content-Type": "application/json"}, body);
+}
+
+function jsonError(status: int32, msg: string): Response {
+    return jsonOk(status, json.stringify(ApiError(msg)));
+}
+
+function main() {
+    // The integration test sets JSGO_ADDR_FILE to learn the
+    // ephemeral port it binds; interactive runs get a fixed port.
+    let addrFile = os.getenv("JSGO_ADDR_FILE");
+    let addr = "127.0.0.1:8080";
+    if (addrFile != "") {
+        addr = "127.0.0.1:0";
+    }
+    let r = http.serve(addr, handle);
+    if (!r.isOk()) {
+        println("serve failed: " + r.error());
+        return;
+    }
+    if (addrFile != "") {
+        filesystem.writeFile(addrFile, net.localAddr(r.value()));
+    }
+    println("TODO API on http://" + net.localAddr(r.value()) + "/api/todos");
+}
