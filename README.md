@@ -65,9 +65,35 @@ Open `installers/jsgo-0.2.0-darwin-arm64.pkg` on Apple silicon or
 `/usr/local/bin` and the documentation to
 `/usr/local/share/doc/jsgo/`.
 
-The package is not signed, so macOS asks you to confirm it the first
-time: right-click the file and choose **Open**. From a terminal,
-`sudo installer -pkg <file> -target /` installs it directly.
+The package is **not signed or notarised** (the project does not yet
+hold an Apple Developer ID), so macOS Gatekeeper cannot verify it and
+shows *"Apple could not verify … is free of malware"* the first time
+you open it. That is a reputation check on an unsigned download, not a
+malware finding about this file. Three ways to install anyway:
+
+1. **Right-click → Open.** Right-click (or Control-click) the `.pkg`
+   in Finder and choose **Open**, then **Open** again in the dialog.
+   This works for the plain Gatekeeper warning. If macOS shows the
+   stricter *"could not verify"* dialog instead, use (2) or (3).
+
+2. **Remove the quarantine flag, then double-click.** In a terminal:
+   ```sh
+   xattr -d com.apple.quarantine jsgo-0.2.0-darwin-arm64.pkg
+   ```
+   (use the `darwin-amd64` name on Intel). This clears the download
+   mark; Gatekeeper then treats the file like a locally built one.
+   macOS 15+ also stamps a SIP-protected `com.apple.provenance`
+   attribute that cannot be removed, but clearing quarantine is
+   enough for the installer to run.
+
+3. **Install from the terminal (bypasses Gatekeeper entirely).**
+   ```sh
+   sudo installer -pkg jsgo-0.2.0-darwin-arm64.pkg -target /
+   ```
+   This is the most reliable route and is the one to use in scripts
+   and CI. It does not prompt for confirmation.
+
+After any of the three, `jsgo` is on your `PATH` in a new shell.
 
 ### Linux
 
