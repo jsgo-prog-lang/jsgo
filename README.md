@@ -20,11 +20,11 @@ carries the nine official documents with it.
 
 | Platform | Download |
 | --- | --- |
-| Windows (x86-64) | [⬇ **MSI installer**](https://github.com/jsgo-prog-lang/jsgo/raw/main/installers/jsgo-0.2.0-windows-x64.msi) |
-| macOS (Apple silicon) | [⬇ **.pkg installer**](https://github.com/jsgo-prog-lang/jsgo/raw/main/installers/jsgo-0.2.0-darwin-arm64.pkg) |
-| macOS (Intel) | [⬇ **.pkg installer**](https://github.com/jsgo-prog-lang/jsgo/raw/main/installers/jsgo-0.2.0-darwin-amd64.pkg) |
-| Linux (x86-64) | [⬇ **.deb package**](https://github.com/jsgo-prog-lang/jsgo/raw/main/installers/jsgo_0.2.0_amd64.deb) |
-| Linux (aarch64) | [⬇ **.deb package**](https://github.com/jsgo-prog-lang/jsgo/raw/main/installers/jsgo_0.2.0_arm64.deb) |
+| Windows (x86-64) | [⬇ **MSI installer**](https://github.com/jsgo-prog-lang/jsgo/raw/main/installers/jsgo-0.2.1-windows-x64.msi) |
+| macOS (Apple silicon) | [⬇ **.pkg installer**](https://github.com/jsgo-prog-lang/jsgo/raw/main/installers/jsgo-0.2.1-darwin-arm64.pkg) |
+| macOS (Intel) | [⬇ **.pkg installer**](https://github.com/jsgo-prog-lang/jsgo/raw/main/installers/jsgo-0.2.1-darwin-amd64.pkg) |
+| Linux (x86-64) | [⬇ **.deb package**](https://github.com/jsgo-prog-lang/jsgo/raw/main/installers/jsgo_0.2.1_amd64.deb) |
+| Linux (aarch64) | [⬇ **.deb package**](https://github.com/jsgo-prog-lang/jsgo/raw/main/installers/jsgo_0.2.1_arm64.deb) |
 
 ## Contents
 
@@ -39,7 +39,7 @@ LICENSE      MIT
 
 ### Windows
 
-Open `installers/jsgo-0.2.0-windows-x64.msi`. It installs
+Open `installers/jsgo-0.2.1-windows-x64.msi`. It installs
 `jsgo.exe` under `Program Files\JSGo` and adds that directory to your
 `PATH`, so a new shell picks it up immediately.
 
@@ -51,7 +51,7 @@ this file. Choose **More info → Run anyway**. To clear the mark from
 PowerShell first:
 
 ```powershell
-Unblock-File .\jsgo-0.2.0-windows-x64.msi
+Unblock-File .\jsgo-0.2.1-windows-x64.msi
 ```
 
 On Windows 11 with **Smart App Control** enabled, unsigned files are
@@ -60,8 +60,8 @@ be re-enabled once turned off, so disable it before installing.
 
 ### macOS
 
-Open `installers/jsgo-0.2.0-darwin-arm64.pkg` on Apple silicon or
-`jsgo-0.2.0-darwin-amd64.pkg` on Intel. It installs `jsgo` to
+Open `installers/jsgo-0.2.1-darwin-arm64.pkg` on Apple silicon or
+`jsgo-0.2.1-darwin-amd64.pkg` on Intel. It installs `jsgo` to
 `/usr/local/bin` and the documentation to
 `/usr/local/share/doc/jsgo/`.
 
@@ -78,7 +78,7 @@ malware finding about this file. Three ways to install anyway:
 
 2. **Remove the quarantine flag, then double-click.** In a terminal:
    ```sh
-   xattr -d com.apple.quarantine jsgo-0.2.0-darwin-arm64.pkg
+   xattr -d com.apple.quarantine jsgo-0.2.1-darwin-arm64.pkg
    ```
    (use the `darwin-amd64` name on Intel). This clears the download
    mark; Gatekeeper then treats the file like a locally built one.
@@ -88,7 +88,7 @@ malware finding about this file. Three ways to install anyway:
 
 3. **Install from the terminal (bypasses Gatekeeper entirely).**
    ```sh
-   sudo installer -pkg jsgo-0.2.0-darwin-arm64.pkg -target /
+   sudo installer -pkg jsgo-0.2.1-darwin-arm64.pkg -target /
    ```
    This is the most reliable route and is the one to use in scripts
    and CI. It does not prompt for confirmation.
@@ -100,8 +100,8 @@ After any of the three, `jsgo` is on your `PATH` in a new shell.
 Install the package for your architecture with your package manager:
 
 ```sh
-sudo dpkg -i installers/jsgo_0.2.0_amd64.deb   # x86-64
-sudo dpkg -i installers/jsgo_0.2.0_arm64.deb   # aarch64
+sudo dpkg -i installers/jsgo_0.2.1_amd64.deb   # x86-64
+sudo dpkg -i installers/jsgo_0.2.1_arm64.deb   # aarch64
 ```
 
 It installs `jsgo` to `/usr/bin/jsgo` and the documentation to
